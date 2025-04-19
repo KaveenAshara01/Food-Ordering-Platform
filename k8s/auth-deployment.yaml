@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: yourusername/auth-service:latest
+        image: kaveenashara/auth-service:latest
         ports:
         - containerPort: 3000
         env:
@@ -40,4 +40,4 @@ spec:
   ports:
   - protocol: TCP
     port: 3000
-    targetPort: 3000
+    targetPort: 3000
