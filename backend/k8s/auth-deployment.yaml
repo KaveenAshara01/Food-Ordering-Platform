@@ -16,13 +16,14 @@ spec:
       containers:
       - name: auth-service
         image: kaveenashara/auth-service:latest
+        command: ["node", "app.js"]
         ports:
-        - containerPort: 3000
+        - containerPort: 5000
         env:
         - name: MONGO_URI
           value: mongodb://mongo:27017/authdb
         - name: PORT
-          value: "3000"
+          value: "5000"
         - name: JWT_SECRET
           valueFrom:
             secretKeyRef:
@@ -39,5 +40,6 @@ spec:
     app: auth-service
   ports:
   - protocol: TCP
-    port: 3000
-    targetPort: 3000
+    port: 5000
+    targetPort: 5000
+  type: ClusterIP
