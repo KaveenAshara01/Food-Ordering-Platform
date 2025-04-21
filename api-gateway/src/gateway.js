@@ -1,68 +1,64 @@
-import express, { json } from "express";
-import { verify } from "jsonwebtoken";
-import { createProxyMiddleware } from "http-proxy-middleware";
-import { config } from "dotenv";
-import cors from "cors";
-
-config();
+const express = require('express');
+const { createProxyMiddleware } = require('http-proxy-middleware');
+const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(cors());
-app.use(json());
 
-// Middleware to verify JWT
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // Bearer <token>
+app.use(express.json());
 
-  if (!token) {
-    return res.status(401).json({ error: "Access token required" });
-  }
+// Middleware to verify JWT for protected routes
+const verifyToken = (req, res, next) => {
+  const publicRoutes = ['/api/auth/register', '/api/auth/login'];
+  if (publicRoutes.includes(req.path)) return next();
 
-  verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: "Invalid or expired token" });
-    }
-    req.user = user; // Attach user info (id, role) to request
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
     next();
-  });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
 };
 
-// Routes that don't require authentication
-app.use(
-  "/api/auth",
-  createProxyMiddleware({
-    target: "http://auth-service:3000", // Kubernetes service name
-    changeOrigin: true,
-  })
-);
+app.use(verifyToken);
 
-// Protected routes (example for other services)
+// Proxy routes to microservices
 app.use(
-  "/api/restaurant",
-  authenticateToken,
+  '/api/auth',
   createProxyMiddleware({
-    target: "http://restaurant-service:3001",
+    target: 'http://auth-service:3000',
     changeOrigin: true,
   })
 );
 
 app.use(
-  "/api/order",
-  authenticateToken,
+  '/api/restaurant',
   createProxyMiddleware({
-    target: "http://order-service:3002",
+    target: 'http://restaurant-service:3001',
     changeOrigin: true,
   })
 );
 
-// Error handling
-app.use((err, req, res, next) => {
-  console.error("Gateway error:", err);
-  res.status(500).json({ error: "Internal server error" });
-});
+app.use(
+  '/api/order',
+  createProxyMiddleware({
+    target: 'http://order-service:3002',
+    changeOrigin: true,
+  })
+);
 
-const PORT = process.env.PORT || 8080;
+app.use(
+  '/api/delivery',
+  createProxyMiddleware({
+    target: 'http://delivery-service:3003',
+    changeOrigin: true,
+  })
+);
+
+const PORT = process.env.PORT || 8082;
 app.listen(PORT, () => {
-  console.log(`API Gateway running on port ${PORT}`);
+  console.log(`API Gateway running on port ${PORT}`);
 });
